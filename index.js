@@ -127,8 +127,8 @@ async function startBot() {
     // Initialize API client
     await initializeEngineClient();
 
-    app.listen(3000, function () {
-      console.log("Example skill server listening on port 3000!");
+    app.listen(8080, function () {
+      console.log("Example skill server listening on port 8080!");
     });
   } catch (error) {
     console.error("Failed to start the bot:", error);
