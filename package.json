@@ -9,7 +9,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
-  "author": "Dabini Lab",
+  "author": "Dabini Lab Inc.",
   "dependencies": {
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
