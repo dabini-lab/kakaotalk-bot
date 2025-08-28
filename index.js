@@ -3,7 +3,6 @@ import express from "express";
 import logger from "morgan";
 import dotenv from "dotenv";
 import { randomUUID } from "crypto";
-import fetch from "node-fetch";
 
 const app = express();
 
@@ -38,16 +37,24 @@ async function initializeEngineClient() {
     console.log("Engine client initialized successfully");
   } catch (error) {
     console.error("Failed to initialize engine client:", error);
+    throw error; // Re-throw to handle in startBot
   }
 }
 
-const apiRouter = express.Router();
+const channelRouter = express.Router();
+const groupRouter = express.Router();
 
 app.use(logger("dev", {}));
 app.use(express.json());
-app.use("/api", apiRouter);
+app.use("/channel", channelRouter);
+app.use("/group", groupRouter);
 
-apiRouter.post("/message", async function (req, res) {
+// // Health check endpoint
+app.get("/health", function (req, res) {
+  res.status(200).json({ status: "ok" });
+});
+
+channelRouter.post("/message", async function (req, res) {
   try {
     const { userRequest, bot } = req.body;
 
@@ -117,21 +124,43 @@ apiRouter.post("/message", async function (req, res) {
   }
 });
 
-// Health check endpoint
-apiRouter.get("/health", function (req, res) {
-  res.status(200).json({ status: "ok" });
+// Group message endpoint
+groupRouter.post("/message", async function (req, res) {
+  try {
+    const responseBody = createKakaoResponse("안녕!");
+    res.status(200).json(responseBody);
+  } catch (error) {
+    console.error("Error with group message:", error);
+    const errorResponse = createKakaoResponse(cannotProcessRequestText);
+    res.status(500).json(errorResponse);
+  }
 });
 
 async function startBot() {
   try {
-    // Initialize API client
     await initializeEngineClient();
 
-    app.listen(8080, function () {
+    // Start the server first
+    const server = app.listen(8080, function () {
       console.log("Example skill server listening on port 8080!");
+    });
+
+    // Handle server errors
+    server.on("error", (error) => {
+      console.error("Server error:", error);
+    });
+
+    // Keep the process alive
+    process.on("SIGINT", () => {
+      console.log("Received SIGINT, shutting down gracefully...");
+      server.close(() => {
+        console.log("Server closed");
+        process.exit(0);
+      });
     });
   } catch (error) {
     console.error("Failed to start the bot:", error);
+    process.exit(1);
   }
 }
 
