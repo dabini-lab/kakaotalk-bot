@@ -95,68 +95,31 @@ channelRouter.post("/message", async function (req, res) {
       useCallback: true,
     });
 
-    try {
-      const { userRequest, bot } = req.body;
+    const requestBody = {
+      messages: [prompt],
+      session_id: `kakaotalk-${userRequest.user?.id || randomUUID()}-${
+        userRequest.user?.type || "user"
+      }`,
+    };
 
-      if (!userRequest || !userRequest.utterance) {
-        return res.status(400).json({ error: "Missing message content" });
-      }
+    const response = await engineClient.request({
+      url: `${ENGINE_URL}/messages`,
+      method: "POST",
+      data: requestBody,
+    });
 
-      const prompt = userRequest.utterance.trim();
-      if (!prompt) {
-        return res.status(400).json({ error: "Empty message content" });
-      }
+    const engineResponse = response.data;
+    let responseText = cannotProcessRequestText;
 
-      const callbackUrl = userRequest.callbackUrl;
-
-      res.status(200).json({
-        version: "2.0",
-        useCallback: true,
-      });
-
-      const requestBody = {
-        messages: [prompt],
-        session_id: `kakaotalk-${userRequest.user?.id || randomUUID()}-${userRequest.user?.type || "user"}`,
-      };
-
-      const response = await engineClient.request({
-        url: `${ENGINE_URL}/messages`,
-        method: "POST",
-        data: requestBody,
-      });
-
-      const engineResponse = response.data;
-      let responseText = cannotProcessRequestText;
-
-      if (
-        engineResponse &&
-        engineResponse.messages &&
-        engineResponse.messages.length > 0
-      ) {
-        responseText = engineResponse.messages[0];
-      }
-
-      const responseBody = createKakaoResponse(responseText);
-
-      // If callback URL is provided, send the response there
-      if (callbackUrl) {
-        try {
-          await fetch(callbackUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(responseBody),
-          });
-        } catch (error) {
-          console.error("Error sending callback:", error);
-        }
-      }
-    } catch (error) {
-      console.error("Error with engine API:", error);
-      const errorResponse = createKakaoResponse(cannotProcessRequestText);
-      res.status(500).send(errorResponse);
+    if (
+      engineResponse &&
+      engineResponse.messages &&
+      engineResponse.messages.length > 0
+    ) {
+      responseText = engineResponse.messages[0];
     }
+
+    const responseBody = createKakaoResponse(responseText);
 
     // If callback URL is provided, send the response there
     if (callbackUrl) {
