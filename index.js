@@ -97,68 +97,31 @@ channelRouter.post("/message", async function (req, res) {
       useCallback: true,
     });
 
-    try {
-      const { userRequest, bot } = req.body;
+    const requestBody = {
+      messages: [prompt],
+      session_id: `kakaotalk-${userRequest.user?.id || randomUUID()}-${
+        userRequest.user?.type || "user"
+      }`,
+    };
 
-      if (!userRequest || !userRequest.utterance) {
-        return res.status(400).json({ error: "Missing message content" });
-      }
+    const response = await engineClient.request({
+      url: `${ENGINE_URL}/messages`,
+      method: "POST",
+      data: requestBody,
+    });
 
-      const prompt = userRequest.utterance.trim();
-      if (!prompt) {
-        return res.status(400).json({ error: "Empty message content" });
-      }
+    const engineResponse = response.data;
+    let responseText = cannotProcessRequestText;
 
-      const callbackUrl = userRequest.callbackUrl;
-
-      res.status(200).json({
-        version: "2.0",
-        useCallback: true,
-      });
-
-      const requestBody = {
-        messages: [prompt],
-        session_id: `kakaotalk-${userRequest.user?.id || randomUUID()}-${userRequest.user?.type || "user"}`,
-      };
-
-      const response = await engineClient.request({
-        url: `${ENGINE_URL}/messages`,
-        method: "POST",
-        data: requestBody,
-      });
-
-      const engineResponse = response.data;
-      let responseText = cannotProcessRequestText;
-
-      if (
-        engineResponse &&
-        engineResponse.messages &&
-        engineResponse.messages.length > 0
-      ) {
-        responseText = engineResponse.messages[0];
-      }
-
-      const responseBody = createKakaoResponse(responseText);
-
-      // If callback URL is provided, send the response there
-      if (callbackUrl) {
-        try {
-          await fetch(callbackUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(responseBody),
-          });
-        } catch (error) {
-          console.error("Error sending callback:", error);
-        }
-      }
-    } catch (error) {
-      console.error("Error with engine API:", error);
-      const errorResponse = createKakaoResponse(cannotProcessRequestText);
-      res.status(500).send(errorResponse);
+    if (
+      engineResponse &&
+      engineResponse.messages &&
+      engineResponse.messages.length > 0
+    ) {
+      responseText = engineResponse.messages[0];
     }
+
+    const responseBody = createKakaoResponse(responseText);
 
     // If callback URL is provided, send the response there
     if (callbackUrl) {
@@ -188,8 +151,6 @@ channelRouter.post("/message", async function (req, res) {
 groupRouter.post("/message", async function (req, res) {
   try {
     const { userRequest, bot } = req.body;
-    console.log(userRequest);
-
     if (!userRequest || !userRequest.utterance) {
       return res.status(400).json({ error: "Missing message content" });
     }
@@ -205,7 +166,7 @@ groupRouter.post("/message", async function (req, res) {
     res.status(200).json({
       version: "2.0",
       useCallback: true,
-      data: {"text" : "생각하고 있는 중이에요. \n15초 정도 소요될 거 같아요 기다려 주실래요?"}
+      data: { "text": "생각하고 있는 중이에요.\n기다려 주실래요?" }
     });
 
     // Async: Generate image and send result to callbackUrl
@@ -222,10 +183,10 @@ groupRouter.post("/message", async function (req, res) {
           if (imageData.success && imageData.image_data) {
             responseBody = createImageResponse(imageData.image_data.url, imagePrompt);
           } else {
-            responseBody = createKakaoResponse(responseText + "\n(이미지 생성 실패)");
+            responseBody = createKakaoResponse(cannotProcessRequestText + "\n(이미지 생성 실패)");
           }
         } catch (error) {
-          responseBody = createKakaoResponse(responseText + "\n(이미지 생성 오류)");
+          responseBody = createKakaoResponse(cannotProcessRequestText + "\n(이미지 생성 오류)");
         }
         // If callbackUrl exists, POST the result
         if (callbackUrl) {
@@ -271,7 +232,7 @@ async function startBot() {
     await initializeEngineClient();
 
     // Start the server first
-    const PORT = process.env.PORT || 8081;
+    const PORT = process.env.PORT || 8080;
     const server = app.listen(PORT, function () {
       console.log(`Example skill server listening on port ${PORT}!`);
     });
