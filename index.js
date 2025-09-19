@@ -9,13 +9,12 @@ const app = express();
 dotenv.config();
 
 const ENGINE_URL = process.env.ENGINE_URL;
-const cannotProcessRequestText =
-  "죄송합니다. 지금은 요청을 처리할 수 없습니다.";
+const cannotProcessRequestText = "죄송합니다. 요청을 처리할 수 없습니다.";
 
 // Template function for KakaoTalk response format
 function createKakaoResponse(text = null) {
   const outputs = [];
-  
+
   // Add text response if provided
   if (text) {
     outputs.push({
@@ -49,7 +48,6 @@ function createImageResponse(imageUrl, altText = "Generated image") {
     },
   };
 }
-
 
 const auth = new GoogleAuth();
 let engineClient;
@@ -166,7 +164,7 @@ groupRouter.post("/message", async function (req, res) {
     res.status(200).json({
       version: "2.0",
       useCallback: true,
-      data: { "text": "생각하고 있는 중이에요.\n기다려 주실래요?" }
+      data: { text: "생각하고 있는 중이에요.\n기다려 주실래요?" },
     });
 
     // Async: Generate image and send result to callbackUrl
@@ -176,17 +174,26 @@ groupRouter.post("/message", async function (req, res) {
         const imagePrompt = prompt;
         try {
           const imageRes = await engineClient.request({
-            url: `${ENGINE_URL}/image?prompt=${encodeURIComponent(imagePrompt)}`,
+            url: `${ENGINE_URL}/image?prompt=${encodeURIComponent(
+              imagePrompt
+            )}`,
             method: "GET",
           });
           const imageData = imageRes.data;
           if (imageData.success && imageData.image_data) {
-            responseBody = createImageResponse(imageData.image_data.url, imagePrompt);
+            responseBody = createImageResponse(
+              imageData.image_data.url,
+              imagePrompt
+            );
           } else {
-            responseBody = createKakaoResponse(cannotProcessRequestText + "\n(이미지 생성 실패)");
+            responseBody = createKakaoResponse(
+              cannotProcessRequestText + "\n(이미지 생성 실패)"
+            );
           }
         } catch (error) {
-          responseBody = createKakaoResponse(cannotProcessRequestText + "\n(이미지 생성 오류)");
+          responseBody = createKakaoResponse(
+            cannotProcessRequestText + "\n(이미지 생성 오류)"
+          );
         }
         // If callbackUrl exists, POST the result
         if (callbackUrl) {
