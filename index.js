@@ -260,7 +260,7 @@ async function startBot() {
     await initializeEngineClient();
 
     // Start the server first
-    const PORT = process.env.PORT || 8081;
+    const PORT = process.env.PORT || 8080;
     const server = app.listen(PORT, function () {
       console.log(`Example skill server listening on port ${PORT}!`);
     });
