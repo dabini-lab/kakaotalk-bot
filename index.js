@@ -182,12 +182,11 @@ groupRouter.post("/message", async function (req, res) {
       try {
         const imagePrompt = prompt;
         try {
+          const userId = userRequest.user?.id || randomUUID();
           const requestBody = {
             message: imagePrompt,
-            user_id: userRequest.user?.id || randomUUID(),
-            session_id: `kakaotalk-group-${userRequest.user?.id || randomUUID()}-${
-              userRequest.user?.type || "user"
-            }`,
+            user_id: userId,
+            session_id: `kakaotalk-group-${userId}-${userRequest.user?.type || "user"}`,
           };
           
           const imageRes = await engineClient.request({
