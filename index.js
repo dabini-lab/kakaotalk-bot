@@ -9,12 +9,12 @@ const app = express();
 dotenv.config();
 
 const ENGINE_URL = process.env.ENGINE_URL;
-const cannotProcessRequestText = "죄송합니다. 요청을 처리할 수 없습니다.";
+const cannotProcessRequestText =
+  "지금은 요청을 처리할 수 없어. 나중에 시도해 줘.";
 
 // Template function for KakaoTalk response format
 function createKakaoResponse(text = null) {
   const outputs = [];
-
   // Add text response if provided
   if (text) {
     outputs.push({
@@ -33,21 +33,30 @@ function createKakaoResponse(text = null) {
 }
 
 // Function to create image response for KakaoTalk
-function createImageResponse(imageUrl, altText = "Generated image") {
+function createImageResponse(imageUrl, altText = "Generated image", description = null) {
+  // description이 있으면 simpleText와 simpleImage를 함께 반환
+  const outputs = [];
+  if (description) {
+    outputs.push({
+      simpleText: {
+        text: description,
+      },
+    });
+  }
+  outputs.push({
+    simpleImage: {
+      imageUrl: imageUrl,
+      altText: altText,
+    },
+  });
   return {
     version: "2.0",
     template: {
-      outputs: [
-        {
-          simpleImage: {
-            imageUrl: imageUrl,
-            altText: altText,
-          },
-        },
-      ],
+      outputs: outputs,
     },
   };
 }
+
 
 const auth = new GoogleAuth();
 let engineClient;
@@ -164,7 +173,7 @@ groupRouter.post("/message", async function (req, res) {
     res.status(200).json({
       version: "2.0",
       useCallback: true,
-      data: { text: "생각하고 있는 중이에요.\n기다려 주실래요?" },
+      data: { "text": "그리고 있는 중이야. 기다려 줘!" }
     });
 
     // Async: Generate image and send result to callbackUrl
@@ -173,22 +182,33 @@ groupRouter.post("/message", async function (req, res) {
       try {
         const imagePrompt = prompt;
         try {
+          const userId = userRequest.user?.id || randomUUID();
+          const requestBody = {
+            message: imagePrompt,
+            user_id: userId,
+            session_id: `kakaotalk-group-${userId}-${userRequest.user?.type || "user"}`,
+          };
+          
           const imageRes = await engineClient.request({
-            url: `${ENGINE_URL}/image?prompt=${encodeURIComponent(
-              imagePrompt
-            )}`,
-            method: "GET",
+            url: `${ENGINE_URL}/kakao/message`,
+            method: "POST",
+            data: requestBody,
           });
           const imageData = imageRes.data;
-          if (imageData.success && imageData.image_data) {
+          if (imageData.success && imageData.is_returning_image && imageData.image_url) {
+            // 응답 메시지와 이미지 URL을 함께 사용
+            const description = imageData.response_message;
             responseBody = createImageResponse(
-              imageData.image_data.url,
-              imagePrompt
+              imageData.image_url,
+              imagePrompt,
+              description
             );
           } else {
-            responseBody = createKakaoResponse(
-              cannotProcessRequestText + "\n(이미지 생성 실패)"
-            );
+            // 이미지 생성이 실패했거나 이미지 요청이 아닌 경우
+            const errorMessage = imageData.error 
+              ? `${cannotProcessRequestText}\n(${imageData.error})`
+              : imageData.response_message || cannotProcessRequestText;
+            responseBody = createKakaoResponse(errorMessage);
           }
         } catch (error) {
           responseBody = createKakaoResponse(
