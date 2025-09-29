@@ -37,7 +37,7 @@ function createKakaoResponse(text = null) {
 // Function to create image response for KakaoTalk
 function createImageResponse(
   imageUrl,
-  altText = "Generated image",
+  altText = "AI 생성 이미지",
   description = null
 ) {
   // description이 있으면 simpleText와 simpleImage를 함께 반환
@@ -186,16 +186,17 @@ groupRouter.post("/message", async function (req, res) {
       let responseBody;
       try {
         try {
+          const message = prompt.slice(0, 1000); // 최대 1000자 제한
           const userId = userRequest.user?.id;
           const sessionId = `kakaotalk-group-${userRequest.chat?.id}`;
           const requestBody = {
-            message: prompt,
+            message: message,
             user_id: userId || randomUUID(),
             session_id: sessionId || randomUUID(),
           };
           if (DEBUG_MODE) {
             console.log(
-              `message, user_id, session_id: ${prompt}, ${userId}, ${sessionId}`
+              `message, user_id, session_id: ${message}, ${userId}, ${sessionId}`
             );
           }
 
@@ -214,7 +215,7 @@ groupRouter.post("/message", async function (req, res) {
             const description = imageData.response_message;
             responseBody = createImageResponse(
               imageData.image_url,
-              prompt,
+              undefined,
               description
             );
           } else {
