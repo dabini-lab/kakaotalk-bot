@@ -213,10 +213,11 @@ groupRouter.post("/message", async function (req, res) {
           ) {
             // 응답 메시지와 이미지 URL을 함께 사용
             const description = imageData.response_message;
-            responseBody = createImageResponse({
-              imageUrl: imageData.image_url,
-              description: description,
-            });
+            responseBody = createImageResponse(
+              imageData.image_url,
+              undefined,
+              description
+            );
           } else {
             // 이미지 생성이 실패했거나 이미지 요청이 아닌 경우
             const errorMessage = imageData.error
