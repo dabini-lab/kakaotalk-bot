@@ -9,12 +9,13 @@ const app = express();
 dotenv.config();
 
 const ENGINE_URL = process.env.ENGINE_URL;
-const cannotProcessRequestText = "죄송합니다. 요청을 처리할 수 없습니다.";
+const DEBUG_MODE =
+  process.env.DEBUG_MODE === "true" || process.env.NODE_ENV === "development";
+const cannotProcessRequestText = "미안, 요청을 처리할 수 없어.";
 
 // Template function for KakaoTalk response format
 function createKakaoResponse(text = null) {
   const outputs = [];
-
   // Add text response if provided
   if (text) {
     outputs.push({
@@ -33,18 +34,30 @@ function createKakaoResponse(text = null) {
 }
 
 // Function to create image response for KakaoTalk
-function createImageResponse(imageUrl, altText = "Generated image") {
+function createImageResponse(
+  imageUrl,
+  altText = "AI 생성 이미지",
+  description = null
+) {
+  // description이 있으면 simpleText와 simpleImage를 함께 반환
+  const outputs = [];
+  if (description) {
+    outputs.push({
+      simpleText: {
+        text: description,
+      },
+    });
+  }
+  outputs.push({
+    simpleImage: {
+      imageUrl: imageUrl,
+      altText: altText,
+    },
+  });
   return {
     version: "2.0",
     template: {
-      outputs: [
-        {
-          simpleImage: {
-            imageUrl: imageUrl,
-            altText: altText,
-          },
-        },
-      ],
+      outputs: outputs,
     },
   };
 }
@@ -164,31 +177,50 @@ groupRouter.post("/message", async function (req, res) {
     res.status(200).json({
       version: "2.0",
       useCallback: true,
-      data: { text: "생각하고 있는 중이에요.\n기다려 주실래요?" },
+      data: { text: "응, 잠시만 기다려 줘." },
     });
 
     // Async: Generate image and send result to callbackUrl
     (async () => {
       let responseBody;
       try {
-        const imagePrompt = prompt;
         try {
+          const message = prompt.slice(0, 1000); // 최대 1000자 제한
+          const userId = userRequest.user?.id;
+          const sessionId = `kakaotalk-group-${userRequest.chat?.id}`;
+          const requestBody = {
+            message: message,
+            user_id: userId || randomUUID(),
+            session_id: sessionId || randomUUID(),
+          };
+          if (DEBUG_MODE) {
+            console.log(
+              `message, user_id, session_id: ${message}, ${userId}, ${sessionId}`
+            );
+          }
+
           const imageRes = await engineClient.request({
-            url: `${ENGINE_URL}/image?prompt=${encodeURIComponent(
-              imagePrompt
-            )}`,
-            method: "GET",
+            url: `${ENGINE_URL}/kakao/message`,
+            method: "POST",
+            data: requestBody,
           });
           const imageData = imageRes.data;
-          if (imageData.success && imageData.image_data) {
+          const description = imageData.response_message;
+          if (
+            imageData.success &&
+            imageData.is_returning_image &&
+            imageData.image_url
+          ) {
+            // 응답 메시지와 이미지 URL을 함께 사용
             responseBody = createImageResponse(
-              imageData.image_data.url,
-              imagePrompt
+              imageData.image_url,
+              undefined,
+              description
             );
           } else {
-            responseBody = createKakaoResponse(
-              cannotProcessRequestText + "\n(이미지 생성 실패)"
-            );
+            // 이미지 생성이 실패했거나 이미지 요청이 아닌 경우
+            const errorMessage = description || cannotProcessRequestText;
+            responseBody = createKakaoResponse(errorMessage);
           }
         } catch (error) {
           responseBody = createKakaoResponse(
