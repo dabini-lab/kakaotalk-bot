@@ -11,8 +11,7 @@ dotenv.config();
 const ENGINE_URL = process.env.ENGINE_URL;
 const DEBUG_MODE =
   process.env.DEBUG_MODE === "true" || process.env.NODE_ENV === "development";
-const cannotProcessRequestText =
-  "지금은 요청을 처리할 수 없어. 나중에 시도해 줘.";
+const cannotProcessRequestText = "미안, 요청을 처리할 수 없어.";
 
 // Template function for KakaoTalk response format
 function createKakaoResponse(text = null) {
@@ -206,13 +205,13 @@ groupRouter.post("/message", async function (req, res) {
             data: requestBody,
           });
           const imageData = imageRes.data;
+          const description = imageData.response_message;
           if (
             imageData.success &&
             imageData.is_returning_image &&
             imageData.image_url
           ) {
             // 응답 메시지와 이미지 URL을 함께 사용
-            const description = imageData.response_message;
             responseBody = createImageResponse(
               imageData.image_url,
               undefined,
@@ -220,9 +219,7 @@ groupRouter.post("/message", async function (req, res) {
             );
           } else {
             // 이미지 생성이 실패했거나 이미지 요청이 아닌 경우
-            const errorMessage = imageData.error
-              ? `${cannotProcessRequestText}\n(${imageData.error})`
-              : imageData.response_message || cannotProcessRequestText;
+            const errorMessage = description || cannotProcessRequestText;
             responseBody = createKakaoResponse(errorMessage);
           }
         } catch (error) {
