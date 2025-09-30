@@ -162,7 +162,7 @@ channelRouter.post("/message", async function (req, res) {
 groupRouter.post("/message", async function (req, res) {
   try {
     const { userRequest, bot } = req.body;
-    if (!userRequest || !userRequest.utterance) {
+    if (!userRequest) {
       return res.status(400).json({ error: "Missing message content" });
     }
 
