@@ -168,7 +168,10 @@ groupRouter.post("/message", async function (req, res) {
 
     const prompt = userRequest.utterance.trim();
     if (!prompt) {
-      return res.status(400).json({ error: "Empty message content" });
+      return res.status(200).json({
+        version: "2.0",
+        data: { text: "도움말이 필요하면 '@다빈이 도움말'이라고 입력해 봐." },
+      });
     }
 
     const callbackUrl = userRequest.callbackUrl;
